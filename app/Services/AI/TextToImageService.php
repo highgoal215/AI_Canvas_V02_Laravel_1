@@ -2,28 +2,30 @@
 
 namespace App\Services\AI;
 
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\{Storage, Log};
 use OpenAI\Laravel\Facades\OpenAI;
 use Illuminate\Support\Str;
 use App\Models\AI\TextToImageModel;
+use App\Jobs\ProcessImageJob; // If using queues
 
 class TextToImageService
 {
-    /**
-     * @param string $prompt
-     * @param string|null $imageStyle
-     * @param string $aspectRatio
-     * @param int $n
-     * @param string $response_format
-     * @param string|null $user
-     * @return array
-     */
-    public function generate(string $prompt, ?string $imageStyle = null, string $aspectRatio = '1:1', int $n = 1, string $response_format = 'url', ?string $user = null): array
-    {
-        $fullPrompt = $prompt;
-        if ($imageStyle) {
-            $fullPrompt .= ', in a ' . $imageStyle . ' style.';
+    public function generate(
+        string $prompt,
+        ?string $imageStyle = null,
+        string $aspectRatio = '1:1',
+        int $n = 1,
+        string $response_format = 'url',
+        ?string $user = null
+    ): array {
+        // Validate response format
+        if (!in_array($response_format, ['url', 'b64_json'])) {
+            throw new \InvalidArgumentException('Invalid response format');
         }
+
+        $fullPrompt = $imageStyle 
+            ? "{$prompt}, in a {$imageStyle} style." 
+            : $prompt;
 
         $size = match ($aspectRatio) {
             '16:9' => '1792x1024',
@@ -42,21 +44,24 @@ class TextToImageService
             $options['user'] = $user;
         }
 
-        $response = OpenAI::images()->create($options);
+        try {
+            $response = OpenAI::images()->create($options);
+        } catch (\Exception $e) {
+            Log::error('OpenAI API error: ' . $e->getMessage());
+            throw new \RuntimeException('Image generation failed');
+        }
 
         $urls = [];
         foreach ($response->data as $data) {
-            if ($response_format === 'url' || $response_format === 'uri') {
+            if ($response_format === 'url') {
                 $resultUrl = $data->url;
             } else {
-                $imageContent = base64_decode($data->b64_json);
-                $filename = 'generated-images/' . Str::random(40) . '.png';
-                Storage::disk('public')->put($filename, $imageContent);
-                $resultUrl = Storage::disk('public')->url($filename);
+                // Consider queueing for production
+                $resultUrl = $this->storeBase64Image($data->b64_json);
             }
+
             $urls[] = $resultUrl;
 
-            // Save to database
             TextToImageModel::create([
                 'user_id' => $user,
                 'prompt' => $prompt,
@@ -67,5 +72,17 @@ class TextToImageService
         }
 
         return $urls;
+    }
+
+    private function storeBase64Image(string $b64_json): string
+    {
+        $imageContent = base64_decode($b64_json);
+        $filename = 'generated-images/' . Str::random(40) . '.png';
+        
+        if (!Storage::disk('public')->put($filename, $imageContent)) {
+            throw new \RuntimeException('Failed to store image');
+        }
+
+        return Storage::disk('public')->url($filename);
     }
 }
