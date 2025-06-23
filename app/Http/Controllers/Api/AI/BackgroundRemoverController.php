@@ -27,8 +27,11 @@ class BackgroundRemoverController extends Controller
                 $request->user() ? $request->user()->id : null
             );
             return response()->json(['url' => $resultUrl]);
-        } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'error' => 'Background removal failed',
+                'message' => $e->getMessage(),
+            ], 500);
         }
     }
 }

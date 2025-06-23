@@ -25,29 +25,40 @@ class BackgroundRemoverService
             throw new \Exception('Remove.bg API key is not configured.');
         }
 
-        $response = Http::withHeaders([
-            'X-Api-Key' => $apiKey,
-        ])->asForm()->post('https://api.remove.bg/v1.0/removebg', [
-            'image_url' => $imageUrl,
-            'size' => 'auto'
-        ]);
-
-        if ($response->successful()) {
-            $filename = 'background-removed/' . Str::random(40) . '.png';
-            Storage::disk('public')->put($filename, $response->body());
-            $resultUrl = Storage::disk('public')->url($filename);
-
-            // Save to database
-            BackgroundRemoverModel::create([
-                'user_id' => $userId,
-                'original_url' => $imageUrl,
-                'result_url' => $resultUrl,
-                'raw_response' => $response->body(),
+        try {
+            $response = Http::withHeaders([
+                'X-Api-Key' => $apiKey,
+            ])->asForm()->post('https://api.remove.bg/v1.0/removebg', [
+                'image_url' => $imageUrl,
+                'size' => 'auto'
             ]);
 
-            return $resultUrl;
-        }
+            if ($response->successful()) {
+                $filename = 'background-removed/' . Str::random(40) . '.png';
+                Storage::disk('public')->put($filename, $response->body());
+                $resultUrl = Storage::disk('public')->url($filename);
 
-        throw new \Exception('Failed to remove background from image: ' . $response->body());
+                // Save to database
+                BackgroundRemoverModel::create([
+                    'user_id' => $userId,
+                    'original_url' => $imageUrl,
+                    'result_url' => $resultUrl,
+                    'raw_response' => $response->body(),
+                ]);
+
+                return $resultUrl;
+            }
+
+            \Illuminate\Support\Facades\Log::error('Remove.bg API error: ' . $response->body());
+            throw new \RuntimeException('Failed to remove background from image');
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('BackgroundRemoverService error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw new \RuntimeException('Background removal failed: ' . $e->getMessage());
+        }
     }
 }
