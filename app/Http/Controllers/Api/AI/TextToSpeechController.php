@@ -21,17 +21,25 @@ class TextToSpeechController extends Controller
             'prompt' => 'required|string|max:4096',
             'voiceStyle' => 'sometimes|in:alloy,echo,fable,onyx,nova,shimmer',
             'speed' => 'numeric|min:0.25|max:4.0',
+            // Optionally add response_format and n if you want to expose them
         ]);
 
-        $audioUrl = $this->textToSpeechService->generate(
-            $request->input('prompt'),
-            $request->input('voiceStyle', 'alloy'),
-            'tts-1',
-            'mp3',
-            $request->input('speed', 1.0),
-            $request->user() ? $request->user()->id : null
-        );
-
-        return response()->json(['url' => $audioUrl]);
+        try {
+            $urls = $this->textToSpeechService->generate(
+                $request->input('prompt'),
+                $request->input('voiceStyle', 'alloy'),
+                'tts-1',
+                'mp3',
+                $request->input('speed', 1.0),
+                1, // n is always 1 for now
+                $request->user() ? $request->user()->id : null
+            );
+            return response()->json(['urls' => $urls]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'error' => 'Text-to-speech generation failed',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 }
