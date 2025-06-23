@@ -20,16 +20,16 @@ class TextToSpeechController extends Controller
         $request->validate([
             'prompt' => 'required|string|max:4096',
             'voiceStyle' => 'sometimes|in:alloy,echo,fable,onyx,nova,shimmer',
-            'model' => 'in:tts-1,tts-1-hd',
             'speed' => 'numeric|min:0.25|max:4.0',
         ]);
 
         $audioUrl = $this->textToSpeechService->generate(
             $request->input('prompt'),
             $request->input('voiceStyle', 'alloy'),
-            $request->input('model', 'tts-1'),
+            'tts-1',
             'mp3',
-            $request->input('speed', 1.0)
+            $request->input('speed', 1.0),
+            $request->user() ? $request->user()->id : null
         );
 
         return response()->json(['url' => $audioUrl]);

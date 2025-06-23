@@ -26,7 +26,8 @@ class TextToVideoController extends Controller
         $videoUrl = $this->textToVideoService->generate(
             $request->input('prompt'),
             $request->input('videoStyle'),
-            $request->input('duration')
+            $request->input('duration'),
+            $request->user() ? $request->user()->id : null
         );
 
         return response()->json(['url' => $videoUrl]);

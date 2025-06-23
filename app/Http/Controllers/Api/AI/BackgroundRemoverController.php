@@ -23,7 +23,8 @@ class BackgroundRemoverController extends Controller
 
         try {
             $resultUrl = $this->backgroundRemoverService->remove(
-                $request->input('image_url')
+                $request->input('image_url'),
+                $request->user() ? $request->user()->id : null
             );
             return response()->json(['url' => $resultUrl]);
         } catch (\Exception $e) {

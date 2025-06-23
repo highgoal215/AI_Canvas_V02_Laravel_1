@@ -5,6 +5,7 @@ namespace App\Services\AI;
 use OpenAI\Laravel\Facades\OpenAI;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use App\Models\AI\VoiceToTextModel;
 
 class VoiceToTextService
 {
@@ -16,9 +17,10 @@ class VoiceToTextService
      * @param string|null $prompt
      * @param string $response_format
      * @param float $temperature
+     * @param int|null $userId
      * @return string
      */
-    public function transcribe(UploadedFile $file, string $model = 'whisper-1', ?string $prompt = null, string $response_format = 'text', float $temperature = 0.0): string
+    public function transcribe(UploadedFile $file, string $model = 'whisper-1', ?string $prompt = null, string $response_format = 'text', float $temperature = 0.0, ?int $userId = null): string
     {
         // The OpenAI API requires a file resource, so we'll temporarily store the uploaded file
         // to get a file path, which we can then open as a stream.
@@ -37,6 +39,14 @@ class VoiceToTextService
             // Clean up the temporary file.
             Storage::delete($path);
         }
+
+        // Save to database
+        VoiceToTextModel::create([
+            'user_id' => $userId,
+            'file_name' => $file->getClientOriginalName(),
+            'transcript' => is_string($response) ? $response : json_encode($response),
+            'raw_response' => is_string($response) ? null : json_encode($response),
+        ]);
 
         return $response;
     }

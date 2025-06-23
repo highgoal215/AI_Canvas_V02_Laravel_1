@@ -28,7 +28,8 @@ class AutoLayoutController extends Controller
             $request->input('contentType'),
             $request->input('contentDescription'),
             $request->input('layoutStyle'),
-            $request->input('aspectRatio', '16:9')
+            $request->input('aspectRatio', '16:9'),
+            $request->user() ? $request->user()->id : null
         );
 
         return response()->json($layout);

@@ -2,6 +2,8 @@
 
 namespace App\Services\AI;
 
+use App\Models\AI\AutoLayoutModel;
+
 class AutoLayoutService
 {
     /**
@@ -15,9 +17,10 @@ class AutoLayoutService
      * @param string $contentDescription A description of the content.
      * @param string|null $layoutStyle The desired style of the layout (e.g., 'modern').
      * @param string $aspectRatio The desired aspect ratio.
+     * @param int|null $userId The user ID (optional).
      * @return array A suggested layout.
      */
-    public function suggestLayout(string $contentType, string $contentDescription, ?string $layoutStyle = 'modern', string $aspectRatio = '16:9'): array
+    public function suggestLayout(string $contentType, string $contentDescription, ?string $layoutStyle = 'modern', string $aspectRatio = '16:9', ?int $userId = null): array
     {
         // This is a dummy response. A real implementation could use a GPT prompt like:
         // "Generate a JSON object for a layout with a ${aspectRatio} aspect ratio for ${contentType}.
@@ -37,6 +40,17 @@ class AutoLayoutService
                 ]
             ]
         ];
+
+        // Save to database
+        AutoLayoutModel::create([
+            'user_id' => $userId,
+            'content_type' => $contentType,
+            'content_description' => $contentDescription,
+            'layout_style' => $layoutStyle,
+            'aspect_ratio' => $aspectRatio,
+            'layout_json' => json_encode($layout['suggestedLayout']),
+            'raw_response' => json_encode($layout),
+        ]);
 
         return $layout;
     }

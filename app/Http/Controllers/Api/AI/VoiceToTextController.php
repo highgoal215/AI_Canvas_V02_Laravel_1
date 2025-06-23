@@ -22,7 +22,12 @@ class VoiceToTextController extends Controller
         ]);
 
         $text = $this->voiceToTextService->transcribe(
-            $request->file('voice')
+            $request->file('voice'),
+            'whisper-1',
+            null,
+            'text',
+            0.0,
+            $request->user() ? $request->user()->id : null
         );
 
         return response()->json(['text' => $text]);

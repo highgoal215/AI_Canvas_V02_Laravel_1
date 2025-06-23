@@ -21,19 +21,23 @@ class TextToImageController extends Controller
             'prompt' => 'required|string|max:1000',
             'imageStyle' => 'sometimes|string|max:100',
             'aspectRatio' => 'sometimes|string|in:1:1,16:9,9:16,4:3,3:4',
-            'n' => 'integer|min:1|max:10',
-            'response_format' => 'in:url,b64_json',
         ]);
 
-        $urls = $this->textToImageService->generate(
-            $request->input('prompt'),
-            $request->input('imageStyle'),
-            $request->input('aspectRatio', '1:1'),
-            $request->input('n', 1),
-            $request->input('response_format', 'url'),
-            $request->user()->id
-        );
-
-        return response()->json(['urls' => $urls]);
+        try {
+            $urls = $this->textToImageService->generate(
+                $request->input('prompt'),
+                $request->input('imageStyle'),
+                $request->input('aspectRatio', '1:1'),
+                1, // n is always 1
+                'url', // response_format is always url
+                $request->user() ? $request->user()->id : null
+            );
+            return response()->json(['urls' => $urls]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'error' => 'Image generation failed',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

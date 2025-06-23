@@ -5,6 +5,7 @@ namespace App\Services\AI;
 use Illuminate\Support\Facades\Storage;
 use OpenAI\Laravel\Facades\OpenAI;
 use Illuminate\Support\Str;
+use App\Models\AI\TextToImageModel;
 
 class TextToImageService
 {
@@ -46,13 +47,23 @@ class TextToImageService
         $urls = [];
         foreach ($response->data as $data) {
             if ($response_format === 'url' || $response_format === 'uri') {
-                $urls[] = $data->url;
+                $resultUrl = $data->url;
             } else {
                 $imageContent = base64_decode($data->b64_json);
                 $filename = 'generated-images/' . Str::random(40) . '.png';
                 Storage::disk('public')->put($filename, $imageContent);
-                $urls[] = Storage::disk('public')->url($filename);
+                $resultUrl = Storage::disk('public')->url($filename);
             }
+            $urls[] = $resultUrl;
+
+            // Save to database
+            TextToImageModel::create([
+                'user_id' => $user,
+                'prompt' => $prompt,
+                'image_style' => $imageStyle,
+                'aspect_ratio' => $aspectRatio,
+                'result_url' => $resultUrl,
+            ]);
         }
 
         return $urls;
