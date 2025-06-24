@@ -6,7 +6,6 @@ use Illuminate\Support\Facades\{Storage, Log};
 use OpenAI\Laravel\Facades\OpenAI;
 use Illuminate\Support\Str;
 use App\Models\AI\TextToImageModel;
-use Illuminate\Support\Facades\Log;
 
 class TextToImageService
 {
@@ -41,11 +40,11 @@ class TextToImageService
             };
 
             $options = [
+                'model' => 'dall-e-3',
                 'prompt' => $fullPrompt,
                 'n' => $n,
                 'size' => $size,
                 'response_format' => $response_format,
-                'timeout' => 60, // Add timeout
             ];
 
             if ($userId) {
@@ -85,12 +84,6 @@ class TextToImageService
                     'image_style' => $imageStyle,
                     'aspect_ratio' => $aspectRatio,
                     'result_url' => $resultUrl,
-                    'raw_response' => [
-                        'response_format' => $response_format,
-                        'size' => $size,
-                        'generated_at' => now()->toISOString(),
-                        'response_data_count' => count($response->data)
-                    ],
                 ]);
             }
 

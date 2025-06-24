@@ -6,7 +6,6 @@ use Illuminate\Support\Facades\{Storage, Log};
 use OpenAI\Laravel\Facades\OpenAI;
 use Illuminate\Support\Str;
 use App\Models\AI\TextToSpeechModel;
-use Illuminate\Support\Facades\Log;
 
 class TextToSpeechService
 {
@@ -39,7 +38,6 @@ class TextToSpeechService
                 'voice' => $voiceStyle,
                 'response_format' => $response_format,
                 'speed' => $speed,
-                'timeout' => 60, // Add timeout
             ];
 
             Log::info('TextToSpeechService: Making OpenAI API request', [
@@ -67,13 +65,6 @@ class TextToSpeechService
                 'voice_style' => $voiceStyle,
                 'speed' => $speed,
                 'result_url' => $resultUrl,
-                'raw_response' => [
-                    'model' => $model,
-                    'response_format' => $response_format,
-                    'response_size' => strlen($response),
-                    'generated_at' => now()->toISOString(),
-                    'filename' => $filename
-                ],
             ]);
 
             Log::info('TextToSpeechService: Speech generation completed successfully', [
