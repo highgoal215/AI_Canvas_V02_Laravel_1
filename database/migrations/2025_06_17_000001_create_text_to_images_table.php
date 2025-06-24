@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('prompt');
             $table->string('image_style')->nullable();
             $table->string('aspect_ratio')->default('1:1');
-            $table->string('result_url');
+            $table->text('result_url');
             $table->json('raw_response')->nullable();
             $table->timestamps();
         });

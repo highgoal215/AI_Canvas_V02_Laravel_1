@@ -2,7 +2,7 @@
 
 namespace App\Services\AI;
 
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\{Storage, Log};
 use OpenAI\Laravel\Facades\OpenAI;
 use Illuminate\Support\Str;
 use App\Models\AI\TextToImageModel;
@@ -111,5 +111,17 @@ class TextToImageService
             ]);
             throw $e;
         }
+    }
+
+    private function storeBase64Image(string $b64_json): string
+    {
+        $imageContent = base64_decode($b64_json);
+        $filename = 'generated-images/' . Str::random(40) . '.png';
+        
+        if (!Storage::disk('public')->put($filename, $imageContent)) {
+            throw new \RuntimeException('Failed to store image');
+        }
+
+        return Storage::disk('public')->url($filename);
     }
 }

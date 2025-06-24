@@ -2,7 +2,7 @@
 
 namespace App\Services\AI;
 
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\{Storage, Log};
 use OpenAI\Laravel\Facades\OpenAI;
 use Illuminate\Support\Str;
 use App\Models\AI\TextToSpeechModel;
@@ -18,8 +18,9 @@ class TextToSpeechService
      * @param string $model
      * @param string $response_format
      * @param float $speed
+     * @param int $n
      * @param int|null $userId
-     * @return string
+     * @return array
      */
     public function Speechgenerate(string $prompt, string $voiceStyle = 'alloy', string $model = 'tts-1', string $response_format = 'mp3', float $speed = 1.0, ?int $userId = null): string
     {

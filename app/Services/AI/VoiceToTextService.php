@@ -4,7 +4,7 @@ namespace App\Services\AI;
 
 use OpenAI\Laravel\Facades\OpenAI;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\{Storage, Log};
 use App\Models\AI\VoiceToTextModel;
 
 class VoiceToTextService
@@ -18,16 +18,25 @@ class VoiceToTextService
      * @param string $response_format
      * @param float $temperature
      * @param int|null $userId
-     * @return string
+     * @return array
      */
-    public function transcribe(UploadedFile $file, string $model = 'whisper-1', ?string $prompt = null, string $response_format = 'text', float $temperature = 0.0, ?int $userId = null): string
-    {
-        // The OpenAI API requires a file resource, so we'll temporarily store the uploaded file
-        // to get a file path, which we can then open as a stream.
-        $path = $file->store('temp_audio');
-        $filePath = Storage::path($path);
-
+    public function transcribe(
+        UploadedFile $file,
+        string $model = 'whisper-1',
+        ?string $prompt = null,
+        string $response_format = 'text',
+        float $temperature = 0.0,
+        ?int $userId = null
+    ): array {
+        // Validate response format
+        if (!in_array($response_format, ['text', 'json', 'srt', 'verbose_json', 'vtt'])) {
+            throw new \InvalidArgumentException('Invalid response format');
+        }
+    
         try {
+            // Use the temporary file directly
+            $filePath = $file->getRealPath();
+            
             $response = OpenAI::audio()->transcribe([
                 'model' => $model,
                 'file' => fopen($filePath, 'r'),
@@ -35,19 +44,33 @@ class VoiceToTextService
                 'response_format' => $response_format,
                 'temperature' => $temperature,
             ]);
-        } finally {
-            // Clean up the temporary file.
-            Storage::delete($path);
+            
+            $transcript = $response->text;
+            $raw_response = json_encode($response->toArray());
+    
+            VoiceToTextModel::create([
+                'user_id' => $userId,
+                'file_name' => $file->getClientOriginalName(),
+                'transcript' => $transcript,
+                'raw_response' => $raw_response,
+            ]);
+    
+            return [
+                'text' => $transcript,
+                'raw_response' => $raw_response,
+            ];
+            
+        } catch (\Exception $e) {
+            // Add detailed error logging
+            Log::error('OpenAI Whisper API error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            throw new \RuntimeException('Voice-to-text transcription failed: ' . $e->getMessage());
         }
-
-        // Save to database
-        VoiceToTextModel::create([
-            'user_id' => $userId,
-            'file_name' => $file->getClientOriginalName(),
-            'transcript' => is_string($response) ? $response : json_encode($response),
-            'raw_response' => is_string($response) ? null : json_encode($response),
-        ]);
-
-        return $response;
     }
+    
 }
