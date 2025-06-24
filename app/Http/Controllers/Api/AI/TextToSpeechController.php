@@ -97,4 +97,83 @@ class TextToSpeechController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Regenerate speech using the same parameters as a previous generation.
+     */
+    public function SpeechRegenerate(Request $request): JsonResponse
+    {
+        try {
+            Log::info('TextToSpeechController: Regeneration request received', [
+                'has_generation_id' => $request->has('generationId'),
+                'generation_id' => $request->input('generationId'),
+                'user_id' => $request->user()?->id
+            ]);
+
+            // Validate the request
+            $validator = Validator::make($request->all(), [
+                'generationId' => 'required|integer|exists:text_to_speeches,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $generationId = $request->input('generationId');
+            $userId = $request->user()?->id;
+
+            // Regenerate the speech
+            $audioUrl = $this->textToSpeechService->SpeechRegenerate(
+                $generationId,
+                $userId
+            );
+
+            Log::info('TextToSpeechController: Speech regeneration completed', [
+                'original_generation_id' => $generationId,
+                'audio_url' => $audioUrl,
+                'user_id' => $userId
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Speech regenerated successfully',
+                'data' => [
+                    'audio_url' => $audioUrl,
+                    'original_generation_id' => $generationId,
+                    'regenerated_at' => now()->toISOString()
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('TextToSpeechController: Speech regeneration failed', [
+                'error' => $e->getMessage(),
+                'generation_id' => $request->input('generationId'),
+                'user_id' => $request->user()?->id,
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+
+            // Provide specific error messages
+            $errorMessage = 'Failed to regenerate speech';
+            if (str_contains($e->getMessage(), 'Original generation not found')) {
+                $errorMessage = 'The original speech generation was not found.';
+            } elseif (str_contains($e->getMessage(), 'Unauthorized access')) {
+                $errorMessage = 'You are not authorized to regenerate this speech.';
+            } elseif (str_contains($e->getMessage(), 'Invalid response from OpenAI')) {
+                $errorMessage = 'Speech regeneration service is temporarily unavailable. Please try again later.';
+            } elseif (str_contains($e->getMessage(), 'timeout')) {
+                $errorMessage = 'The request timed out. Please try again.';
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => $errorMessage,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

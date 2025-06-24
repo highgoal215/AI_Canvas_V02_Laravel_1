@@ -6,7 +6,6 @@ use Illuminate\Support\Facades\{Storage, Log};
 use OpenAI\Laravel\Facades\OpenAI;
 use Illuminate\Support\Str;
 use App\Models\AI\TextToImageModel;
-use Illuminate\Support\Facades\Log;
 
 class TextToImageService
 {
@@ -123,5 +122,68 @@ class TextToImageService
         }
 
         return Storage::disk('public')->url($filename);
+    }
+
+    /**
+     * Regenerate images with the same parameters as a previous generation.
+     *
+     * @param int $originalGenerationId The ID of the original generation to regenerate
+     * @param int|null $userId The user ID (optional)
+     * @return array
+     */
+    public function ImageRegenerate(int $originalGenerationId, ?int $userId = null): array
+    {
+        try {
+            Log::info('TextToImageService: Starting image regeneration', [
+                'original_generation_id' => $originalGenerationId,
+                'user_id' => $userId
+            ]);
+
+            // Find the original generation
+            $originalGeneration = TextToImageModel::find($originalGenerationId);
+            
+            if (!$originalGeneration) {
+                throw new \Exception('Original generation not found');
+            }
+
+            // Verify user ownership if userId is provided
+            if ($userId && $originalGeneration->user_id !== $userId) {
+                throw new \Exception('Unauthorized access to this generation');
+            }
+
+            Log::info('TextToImageService: Found original generation', [
+                'original_prompt' => $originalGeneration->prompt,
+                'original_style' => $originalGeneration->image_style,
+                'original_aspect_ratio' => $originalGeneration->aspect_ratio
+            ]);
+
+            // Regenerate with the same parameters
+            $urls = $this->Imagegenerate(
+                $originalGeneration->prompt,
+                $originalGeneration->image_style,
+                $originalGeneration->aspect_ratio,
+                1, // n is always 1
+                'url', // response_format is always url
+                $userId
+            );
+
+            Log::info('TextToImageService: Image regeneration completed successfully', [
+                'original_generation_id' => $originalGenerationId,
+                'new_urls_count' => count($urls),
+                'user_id' => $userId
+            ]);
+
+            return $urls;
+
+        } catch (\Exception $e) {
+            Log::error('TextToImageService: Image regeneration failed', [
+                'error' => $e->getMessage(),
+                'original_generation_id' => $originalGenerationId,
+                'user_id' => $userId,
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+            throw $e;
+        }
     }
 }

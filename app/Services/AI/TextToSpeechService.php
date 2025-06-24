@@ -6,7 +6,6 @@ use Illuminate\Support\Facades\{Storage, Log};
 use OpenAI\Laravel\Facades\OpenAI;
 use Illuminate\Support\Str;
 use App\Models\AI\TextToSpeechModel;
-use Illuminate\Support\Facades\Log;
 
 class TextToSpeechService
 {
@@ -88,6 +87,69 @@ class TextToSpeechService
                 'error' => $e->getMessage(),
                 'prompt_length' => strlen($prompt),
                 'voice_style' => $voiceStyle,
+                'user_id' => $userId,
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Regenerate speech with the same parameters as a previous generation.
+     *
+     * @param int $originalGenerationId The ID of the original generation to regenerate
+     * @param int|null $userId The user ID (optional)
+     * @return string
+     */
+    public function SpeechRegenerate(int $originalGenerationId, ?int $userId = null): string
+    {
+        try {
+            Log::info('TextToSpeechService: Starting speech regeneration', [
+                'original_generation_id' => $originalGenerationId,
+                'user_id' => $userId
+            ]);
+
+            // Find the original generation
+            $originalGeneration = TextToSpeechModel::find($originalGenerationId);
+            
+            if (!$originalGeneration) {
+                throw new \Exception('Original generation not found');
+            }
+
+            // Verify user ownership if userId is provided
+            if ($userId && $originalGeneration->user_id !== $userId) {
+                throw new \Exception('Unauthorized access to this generation');
+            }
+
+            Log::info('TextToSpeechService: Found original generation', [
+                'original_text' => substr($originalGeneration->prompt, 0, 100) . '...',
+                'original_voice' => $originalGeneration->voice_style,
+                'original_speed' => $originalGeneration->speed
+            ]);
+
+            // Regenerate with the same parameters
+            $resultUrl = $this->Speechgenerate(
+                $originalGeneration->prompt,
+                $originalGeneration->voice_style,
+                'tts-1', // model
+                'mp3', // response_format
+                $originalGeneration->speed,
+                $userId
+            );
+
+            Log::info('TextToSpeechService: Speech regeneration completed successfully', [
+                'original_generation_id' => $originalGenerationId,
+                'result_url' => $resultUrl,
+                'user_id' => $userId
+            ]);
+
+            return $resultUrl;
+
+        } catch (\Exception $e) {
+            Log::error('TextToSpeechService: Speech regeneration failed', [
+                'error' => $e->getMessage(),
+                'original_generation_id' => $originalGenerationId,
                 'user_id' => $userId,
                 'file' => $e->getFile(),
                 'line' => $e->getLine()

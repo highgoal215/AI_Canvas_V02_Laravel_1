@@ -30,8 +30,10 @@ Route::middleware('auth:sanctum')->group(function () {
 // AI Services - Protected routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('text-to-image', [TextToImageController::class, 'Imagegenerate']);
+    Route::post('text-to-image/regenerate', [TextToImageController::class, 'ImageRegenerate']);
     Route::post('background-remover', [BackgroundRemoverController::class, 'Backgroundremove']);
     Route::post('text-to-speech', [TextToSpeechController::class, 'Speechgenerate']);
+    Route::post('text-to-speech/regenerate', [TextToSpeechController::class, 'SpeechRegenerate']);
     Route::post('voice-to-text', [VoiceToTextController::class, 'transcribe']);
     Route::post('text-to-video', [TextToVideoController::class, 'Videogenerate']);
     Route::post('auto-layout', [AutoLayoutController::class, 'suggest']);
