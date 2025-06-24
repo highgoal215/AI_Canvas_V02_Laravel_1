@@ -39,7 +39,7 @@ class VoiceToTextService
             
             $response = OpenAI::audio()->transcribe([
                 'model' => $model,
-                'file' => fopen($filePath, 'r'),
+                'file' => $filePath,
                 'prompt' => $prompt,
                 'response_format' => $response_format,
                 'temperature' => $temperature,
