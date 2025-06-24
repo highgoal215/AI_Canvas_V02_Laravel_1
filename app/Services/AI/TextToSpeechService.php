@@ -19,9 +19,10 @@ class TextToSpeechService
      * @param float $speed
      * @param int $n
      * @param int|null $userId
+     * @param bool $enhancePrompt
      * @return array
      */
-    public function Speechgenerate(string $prompt, string $voiceStyle = 'alloy', string $model = 'tts-1', string $response_format = 'mp3', float $speed = 1.0, ?int $userId = null): string
+    public function Speechgenerate(string $prompt, string $voiceStyle = 'alloy', string $model = 'tts-1', string $response_format = 'mp3', float $speed = 1.0, ?int $userId = null, bool $enhancePrompt = false): string
     {
         try {
             Log::info('TextToSpeechService: Starting speech generation', [
@@ -29,12 +30,25 @@ class TextToSpeechService
                 'voice_style' => $voiceStyle,
                 'model' => $model,
                 'speed' => $speed,
+                'enhance_prompt' => $enhancePrompt,
                 'user_id' => $userId
             ]);
 
+            $processedPrompt = $prompt;
+            
+            // Use GPT-4 to enhance the prompt if requested
+            if ($enhancePrompt) {
+                $enhancedPrompt = $this->enhanceSpeechPromptWithGPT4($prompt, $voiceStyle);
+                $processedPrompt = $enhancedPrompt;
+                Log::info('TextToSpeechService: Prompt enhanced with GPT-4', [
+                    'original_prompt' => $prompt,
+                    'enhanced_prompt' => $enhancedPrompt
+                ]);
+            }
+
             $options = [
                 'model' => $model,
-                'input' => $prompt,
+                'input' => $processedPrompt,
                 'voice' => $voiceStyle,
                 'response_format' => $response_format,
                 'speed' => $speed,
@@ -42,7 +56,7 @@ class TextToSpeechService
             ];
 
             Log::info('TextToSpeechService: Making OpenAI API request', [
-                'options' => array_merge($options, ['input' => substr($prompt, 0, 100) . '...'])
+                'options' => array_merge($options, ['input' => substr($processedPrompt, 0, 100) . '...'])
             ]);
 
             $response = OpenAI::audio()->speech($options);
@@ -70,6 +84,8 @@ class TextToSpeechService
                     'model' => $model,
                     'response_format' => $response_format,
                     'response_size' => strlen($response),
+                    'enhanced_prompt' => $enhancePrompt ? $processedPrompt : null,
+                    'original_prompt' => $prompt,
                     'generated_at' => now()->toISOString(),
                     'filename' => $filename
                 ],
@@ -92,6 +108,44 @@ class TextToSpeechService
                 'line' => $e->getLine()
             ]);
             throw $e;
+        }
+    }
+
+    /**
+     * Enhance speech prompt using GPT-4
+     */
+    private function enhanceSpeechPromptWithGPT4(string $prompt, string $voiceStyle): string
+    {
+        try {
+            $systemPrompt = "You are an expert at creating natural, engaging text for speech synthesis. Enhance the given text to be more natural, clear, and suitable for text-to-speech conversion. Make it flow better, add appropriate pauses, and ensure it sounds natural when spoken aloud.";
+
+            $userPrompt = "Text: $prompt\nVoice Style: $voiceStyle\n\nPlease enhance this text for better speech synthesis while maintaining the original meaning.";
+
+            $response = OpenAI::chat()->create([
+                'model' => 'gpt-4o-mini',
+                'messages' => [
+                    ['role' => 'system', 'content' => $systemPrompt],
+                    ['role' => 'user', 'content' => $userPrompt]
+                ],
+                'max_tokens' => 300,
+                'temperature' => 0.5,
+            ]);
+
+            $enhancedPrompt = $response->choices[0]->message->content;
+            
+            Log::info('TextToSpeechService: GPT-4 prompt enhancement completed', [
+                'original_prompt' => $prompt,
+                'enhanced_prompt' => $enhancedPrompt
+            ]);
+
+            return $enhancedPrompt;
+
+        } catch (\Exception $e) {
+            Log::warning('TextToSpeechService: GPT-4 prompt enhancement failed, using original prompt', [
+                'error' => $e->getMessage(),
+                'original_prompt' => $prompt
+            ]);
+            return $prompt; // Fallback to original prompt
         }
     }
 

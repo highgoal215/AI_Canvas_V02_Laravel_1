@@ -16,21 +16,46 @@ class TextToImageService
      * @param int $n
      * @param string $response_format
      * @param int|null $userId
+     * @param bool $enhancePrompt
      * @return array
      */
-    public function Imagegenerate(string $prompt, ?string $imageStyle = null, string $aspectRatio = '1:1', int $n = 1, string $response_format = 'url', ?int $userId = null): array
+    public function Imagegenerate(string $prompt, ?string $imageStyle = null, string $aspectRatio = '1:1', int $n = 1, string $response_format = 'url', ?int $userId = null, bool $enhancePrompt = false): array
     {
         try {
             Log::info('TextToImageService: Starting image generation', [
                 'prompt_length' => strlen($prompt),
                 'image_style' => $imageStyle,
                 'aspect_ratio' => $aspectRatio,
+                'enhance_prompt' => $enhancePrompt,
                 'user_id' => $userId
             ]);
 
+            // Debug: Check what API key is being loaded
+        $apiKey = config('openai.api_key');
+        Log::info('OpenAI API Key Debug', [
+            'key_exists' => !empty($apiKey),
+            'key_length' => strlen($apiKey ?? ''),
+            'key_prefix' => substr($apiKey ?? '', 0, 10),
+            'env_key_exists' => !empty(env('OPENAI_API_KEY')),
+        ]);
+                 // Validate API key exists
+            if (!config('openai.api_key')) {
+                throw new \Exception('OpenAI API key not configured');
+            }
             $fullPrompt = $prompt;
-            if ($imageStyle) {
-                $fullPrompt .= ', in a ' . $imageStyle . ' style.';
+            
+            // Use GPT-4.1 to enhance the prompt if requested
+            if ($enhancePrompt) {
+                $enhancedPrompt = $this->enhancePromptWithGPT4($prompt, $imageStyle);
+                $fullPrompt = $enhancedPrompt;
+                Log::info('TextToImageService: Prompt enhanced with GPT-4.1', [
+                    'original_prompt' => $prompt,
+                    'enhanced_prompt' => $enhancedPrompt
+                ]);
+            } else {
+                if ($imageStyle) {
+                    $fullPrompt .= ', in a ' . $imageStyle . ' style.';
+                }
             }
 
             $size = match ($aspectRatio) {
@@ -40,9 +65,11 @@ class TextToImageService
             };
 
             $options = [
+                'model' => 'dall-e-3',
                 'prompt' => $fullPrompt,
                 'n' => $n,
                 'size' => $size,
+                'quality' => 'standard', // Use high quality
                 'response_format' => $response_format,
                 'timeout' => 60, // Add timeout
             ];
@@ -51,11 +78,15 @@ class TextToImageService
                 $options['user'] = (string) $userId;
             }
 
-            Log::info('TextToImageService: Making OpenAI API request', [
-                'options' => array_merge($options, ['prompt' => substr($fullPrompt, 0, 100) . '...'])
+             Log::info('TextToImageService: Making DALL-E 3 API request', [
+                'model' => 'dall-e-3',
+                'size' => $size,
+                'quality' => $options['quality'],
+                'prompt_preview' => substr($fullPrompt, 0, 100) . '...'
             ]);
 
-            $response = OpenAI::images()->create($options);
+
+            $response = OpenAI::images()->create(parameters: $options);
 
             if (!$response || !isset($response->data)) {
                 throw new \Exception('Invalid response from OpenAI API');
@@ -87,6 +118,9 @@ class TextToImageService
                     'raw_response' => [
                         'response_format' => $response_format,
                         'size' => $size,
+                        'quality' => $options['quality'],
+                        'enhanced_prompt' => $enhancePrompt,
+                        'original_prompt' => $prompt,
                         'generated_at' => now()->toISOString(),
                         'response_data_count' => count($response->data)
                     ],
@@ -109,6 +143,47 @@ class TextToImageService
                 'line' => $e->getLine()
             ]);
             throw $e;
+        }
+    }
+
+    /**
+     * Enhance prompt using GPT-4.1
+     */
+    private function enhancePromptWithGPT4(string $prompt, ?string $imageStyle = null): string
+    {
+        try {
+            $systemPrompt = "You are an expert at creating detailed, vivid image prompts for AI image generation. Enhance the given prompt to be more descriptive, specific, and visually appealing while maintaining the original intent. Focus on adding visual details, lighting, composition, and artistic elements.";
+
+            $userPrompt = $prompt;
+            if ($imageStyle) {
+                $userPrompt .= " Style: " . $imageStyle;
+            }
+
+            $response = OpenAI::chat()->create([
+                'model' => 'gpt-4o-mini', // Using GPT-4o-mini (latest available)
+                'messages' => [
+                    ['role' => 'system', 'content' => $systemPrompt],
+                    ['role' => 'user', 'content' => $userPrompt]
+                ],
+                'max_tokens' => 500,
+                'temperature' => 0.7,
+            ]);
+
+            $enhancedPrompt = $response->choices[0]->message->content;
+            
+            Log::info('TextToImageService: GPT-4 prompt enhancement completed', [
+                'original_prompt' => $prompt,
+                'enhanced_prompt' => $enhancedPrompt
+            ]);
+
+            return $enhancedPrompt;
+
+        } catch (\Exception $e) {
+            Log::warning('TextToImageService: GPT-4 prompt enhancement failed, using original prompt', [
+                'error' => $e->getMessage(),
+                'original_prompt' => $prompt
+            ]);
+            return $prompt; // Fallback to original prompt
         }
     }
 

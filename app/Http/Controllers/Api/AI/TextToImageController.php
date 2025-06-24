@@ -32,6 +32,7 @@ class TextToImageController extends Controller
                 'prompt' => 'required|string|max:1000',
                 'imageStyle' => 'sometimes|string|max:100',
                 'aspectRatio' => 'sometimes|string|in:1:1,16:9,9:16,4:3,3:4',
+                'enhancePrompt' => 'sometimes|boolean',
             ]);
 
             if ($validator->fails()) {
@@ -45,6 +46,7 @@ class TextToImageController extends Controller
             $prompt = $request->input('prompt');
             $imageStyle = $request->input('imageStyle');
             $aspectRatio = $request->input('aspectRatio', '1:1');
+            $enhancePrompt = $request->boolean('enhancePrompt', false);
             $userId = $request->user()?->id;
 
             // Generate images
@@ -54,7 +56,8 @@ class TextToImageController extends Controller
                 $aspectRatio,
                 1, // n is always 1
                 'url', // response_format is always url
-                $userId
+                $userId,
+                $enhancePrompt
             );
 
             Log::info('TextToImageController: Image generation completed', [
@@ -69,7 +72,12 @@ class TextToImageController extends Controller
                     'images' => $imageUrls,
                     'count' => count($imageUrls),
                     'aspect_ratio' => $aspectRatio,
-                    'image_style' => $imageStyle
+                    'image_style' => $imageStyle,
+                    'enhance_prompt' => $enhancePrompt,
+                    'models_used' => [
+                        'image_generation' => 'dall-e-3',
+                        'prompt_enhancement' => $enhancePrompt ? 'gpt-4o-mini' : null
+                    ]
                 ]
             ], 200);
 

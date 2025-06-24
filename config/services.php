@@ -35,10 +35,10 @@ return [
         ],
     ],
 
-    // OpenAI API configuration
-    'openai' => [
-        'api_key' => env('OPENAI_API_KEY'),
-    ],
+    // // OpenAI API configuration
+    // 'openai' => [
+    //     'api_key' => env('OPENAI_API_KEY'),
+    // ],
 
     // remove.bg API configuration
      'remove_bg' => [
