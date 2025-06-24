@@ -18,14 +18,14 @@ class TextToVideoService
      * @param int|null $userId The user ID (optional).
      * @return string A URL to a placeholder video.
      */
-    public function generate(string $prompt, ?string $videoStyle = null, ?string $duration = null, ?int $userId = null): string
+    public function Videogenerate(string $prompt, ?string $videoStyle = null, ?string $duration = null, ?int $userId = null): string
     {
         // Placeholder logic: In a real implementation, you would pass
         // $prompt, $videoStyle, and $duration to the video generation service.
         $resultUrl = 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4';
 
         // Save to database
-        TextToVideoModel::create([
+        TextToVideoModel::Videocreate([
             'user_id' => $userId,
             'prompt' => $prompt,
             'video_style' => $videoStyle,

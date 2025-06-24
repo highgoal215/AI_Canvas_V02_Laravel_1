@@ -41,8 +41,8 @@ return [
     ],
 
     // remove.bg API configuration
-    'remove_bg' => [
+     'remove_bg' => [
         'api_key' => env('REMOVE_BG_API_KEY'),
-    ],
+        'api_url' => env('REMOVE_BG_API_URL', 'https://api.remove.bg/v1.0/removebg')],
 
 ];

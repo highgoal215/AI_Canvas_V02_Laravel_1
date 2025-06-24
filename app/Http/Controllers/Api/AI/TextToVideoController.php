@@ -15,7 +15,7 @@ class TextToVideoController extends Controller
         $this->textToVideoService = $textToVideoService;
     }
 
-    public function generate(Request $request)
+    public function Videogenerate(Request $request)
     {
         $request->validate([
             'prompt' => 'required|string|max:1000',
@@ -23,7 +23,7 @@ class TextToVideoController extends Controller
             'duration' => 'sometimes|string|max:20',
         ]);
 
-        $videoUrl = $this->textToVideoService->generate(
+        $videoUrl = $this->textToVideoService->Videogenerate(
             $request->input('prompt'),
             $request->input('videoStyle'),
             $request->input('duration'),

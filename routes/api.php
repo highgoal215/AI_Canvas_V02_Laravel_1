@@ -27,12 +27,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/user', [AuthController::class, 'updateUser']);
 });
 
-
-Route::prefix('ai')->middleware('auth:sanctum')->group(function () {
-    Route::post('text-to-image', [TextToImageController::class, 'generate']);
-    Route::post('background-remover', [BackgroundRemoverController::class, 'remove']);
-    Route::post('text-to-speech', [TextToSpeechController::class, 'generate']);
+// AI Services - Protected routes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('text-to-image', [TextToImageController::class, 'Imagegenerate']);
+    Route::post('background-remover', [BackgroundRemoverController::class, 'Backgroundremove']);
+    Route::post('text-to-speech', [TextToSpeechController::class, 'Speechgenerate']);
     Route::post('voice-to-text', [VoiceToTextController::class, 'transcribe']);
-    Route::post('text-to-video', [TextToVideoController::class, 'generate']);
+    Route::post('text-to-video', [TextToVideoController::class, 'Videogenerate']);
     Route::post('auto-layout', [AutoLayoutController::class, 'suggest']);
+});
+
+// Handle authentication failures for API routes
+Route::fallback(function () {
+    return response()->json([
+        'success' => false,
+        'message' => 'Route not found'
+    ], 404);
 });
