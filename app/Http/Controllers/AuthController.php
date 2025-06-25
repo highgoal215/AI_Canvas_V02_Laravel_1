@@ -19,7 +19,11 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
         }
 
         $user = User::create([
@@ -28,10 +32,15 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        // $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $user->createToken('auth_token')->plainTextToken;
+        
         return response()->json([
-            'user' => $user,
-            // 'token' => $token,
+            'success' => true,
+            'message' => 'User registered successfully',
+            'data' => [
+                'user' => $user,
+                'token' => $token,
+            ]
         ], 201);
     }
 
@@ -43,20 +52,30 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
         }
 
         if (!Auth::attempt($request->only('email', 'password'))) {
             return response()->json([
+                'success' => false,
                 'message' => 'Invalid login credentials'
             ], 401);
         }
+        
         $user = User::where('email', $request->email)->firstOrFail();
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'user' => $user,
-            'token' => $token,
+            'success' => true,
+            'message' => 'Login successful',
+            'data' => [
+                'user' => $user,
+                'token' => $token,
+            ]
         ]);
     }
 
@@ -64,12 +83,20 @@ class AuthController extends Controller
     {
         $user = $request->user();
         if (!$user) {
-            return response()->json(['message' => 'User not authenticated'], 401);
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authenticated'
+            ], 401);
         }
+        
         return response()->json([
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
+            'success' => true,
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'subscription' => $user->subscription,
+            ]
         ]);
     }
 
@@ -77,7 +104,10 @@ class AuthController extends Controller
     {
         $user = $request->user();
         if (!$user) {
-            return response()->json(['message' => 'User not authenticated'], 401);
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authenticated'
+            ], 401);
         }
 
         $validator = Validator::make($request->all(), [
@@ -87,23 +117,29 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
         }
 
         $data = $request->only(['name', 'email']);
 
         if ($request->filled('password')) {
-            $data['password'] = $request->password; // Let model handle hashing
+            $data['password'] = Hash::make($request->password);
         }
 
         $user->update($data);
 
         return response()->json([
+            'success' => true,
             'message' => 'User updated successfully',
-            'user' => [
+            'data' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'subscription' => $user->subscription,
             ]
         ]);
     }
